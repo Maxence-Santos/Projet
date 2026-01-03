@@ -7,6 +7,7 @@ Projet de jeu d'échecs en C avec intégration du moteur Stockfish.
 ### Prérequis
 - **Windows** : Les exécutables sont compilés pour Windows uniquement
 - **Aucune installation supplémentaire requise** : Tous les runtimes sont inclus statiquement
+- **CPU avec support AVX2** recommandé pour Stockfish (la plupart des processeurs depuis 2013)
 
 ### Fichiers nécessaires
 
@@ -73,11 +74,26 @@ cmake --build build --config Release
 ## Notes techniques
 
 - Les exécutables sont compilés avec le **runtime statique** (pas de dépendance aux DLL Visual C++)
+- `check_moves.exe` recherche automatiquement Stockfish dans plusieurs emplacements relatifs
 - Compatible avec Windows 7 et supérieur
 - Taille des fichiers :
   - `chess_game.exe` : ~57 KB
   - `check_moves.exe` : ~144 KB
   - `stockfish-windows-x86-64-avx2.exe` : ~76 MB
+
+## Résolution de problèmes
+
+**check_moves.exe ne trouve pas Stockfish :**
+- Assurez-vous que la structure de dossiers est correcte
+- `check_moves.exe` cherche automatiquement dans :
+  - `stockfish\stockfish-windows-x86-64-avx2.exe` (même dossier)
+  - `..\..stockfish\stockfish-windows-x86-64-avx2.exe` (depuis build/Release)
+  - Le dossier actuel
+
+**L'exécutable ne se lance pas :**
+- Vérifiez que vous êtes sur Windows (pas de support Linux/Mac pour l'instant)
+- Assurez-vous que votre antivirus ne bloque pas l'exécutable
+- Essayez d'exécuter en tant qu'administrateur si nécessaire
 
 ## Licence
 
