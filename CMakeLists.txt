@@ -52,6 +52,11 @@ add_executable(check_moves
     "check_moves.cpp"
 )
 
+# Lien statique du runtime C++ pour check_moves (pas de dépendance aux DLL)
+if(MSVC)
+    set_property(TARGET check_moves PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 if(STOCKFISH_EXECUTABLE)
     target_compile_definitions(check_moves PRIVATE STOCKFISH_PATH="${STOCKFISH_EXECUTABLE}")
 else()
