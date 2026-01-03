@@ -13,6 +13,9 @@ x64/
 *.so
 *.dll
 
+# Exception: Keep Stockfish executable
+!stockfish/*.exe
+
 # CMake
 CMakeCache.txt
 CMakeFiles/

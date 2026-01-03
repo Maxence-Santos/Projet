@@ -47,6 +47,11 @@ target_include_directories(chess_game PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Projet_echecs_Rob3-main"
 )
 
+# Lien statique du runtime C pour chess_game (pas de dépendance aux DLL)
+if(MSVC)
+    set_property(TARGET chess_game PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 # --- Optional: Stockfish integration helper (C++)
 add_executable(check_moves
     "check_moves.cpp"
