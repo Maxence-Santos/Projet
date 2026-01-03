@@ -192,13 +192,34 @@ void rejouer(char choixia, Partie partie, Tab *tableau) {
     }       
     do {
         printf("Voulez-vous rejouer ou quitter ? (r|q) : ");
-        scanf("%c", &r);
+        scanf(" %c", &r);  // Espace avant %c pour ignorer les caractères blancs (newline, etc.)
     } while (r!='r' && r!='q');
     if (r == 'r') main();
     else exit(0);
 }
 
 void affiche_mat(char choixia, Partie partie, Tab *tableau) {
+    // Vérifier le joueur ADVERSE (celui qui n'a pas joué en dernier)
+    Couleur joueur_a_verifier = (partie.joueur_actif == blanc) ? noir : blanc;
+    
+    if (est_en_echec(partie, joueur_a_verifier)) {
+        printf(" \n");
+        if (est_en_mat(partie, joueur_a_verifier)) {
+            if (joueur_a_verifier == blanc) {
+                printf("\n\nEchec et mat, les noirs gagnent !\n");
+            } else {
+                printf("\n\nEchec et mat, les blancs gagnent !\n");
+            }
+            rejouer(choixia, partie, tableau);
+        }
+        if (joueur_a_verifier == blanc) {
+            printf("\nEchec au roi blanc.\n");
+        } else {
+            printf("\nEchec au roi noir.\n");
+        }
+    }
+    
+    /* ANCIENNE VERSION - causait un double affichage du message de mat
     if (est_en_echec(partie, partie.joueur_actif)) {
         printf(" \n");
         if (est_en_mat(partie, partie.joueur_actif)) {
@@ -215,6 +236,7 @@ void affiche_mat(char choixia, Partie partie, Tab *tableau) {
             printf("\nEchec au roi noir.\n");
         }
     }
+    */
 }
 
 void charge_partie(Partie *partie) {
@@ -245,15 +267,15 @@ void charge_partie(Partie *partie) {
     }
 }
 
-void mouvement_ia(Partie partie, Tab *tableau) {
-    if (partie.joueur_actif == blanc) {
-        appliquer_coup(&partie, proposition_joueur(partie), tableau, 0);
+void mouvement_ia(Partie *partie, Tab *tableau) {
+    if (partie->joueur_actif == blanc) {
+        appliquer_coup(partie, proposition_joueur(*partie), tableau, 0);
     } else {
-        char *fen = generate_fen(&partie);
-        Coup ia_move = proposition_ia(partie, tableau);
+        char *fen = generate_fen(partie);
+        Coup ia_move = proposition_ia(*partie, tableau);
         query_move_count_for_fen(fen, g_last_compt);
         free(fen);
-        appliquer_coup(&partie, ia_move, tableau, 1);
+        appliquer_coup(partie, ia_move, tableau, 1);
     }
 }
 
@@ -310,11 +332,12 @@ int main() {
         partie.joueur_actif = (partie.joueur_actif == blanc) ? noir : blanc;
         affichage(partie);
 
-        affiche_mat(choixia, partie, tableau);
+        // ANCIENNE POSITION - vérification du mat AVANT le coup (causait un double affichage)
+        // affiche_mat(choixia, partie, tableau);
 
         int avant = time(NULL);
         if (choixia == 'o' || choixia == 'O') {
-            mouvement_ia(partie, tableau);
+            mouvement_ia(&partie, tableau);
         }
         else {
             appliquer_coup(&partie, proposition_joueur(partie), tableau, 0);
@@ -326,6 +349,9 @@ int main() {
         } else {
             partie.temps_noir -= apres - avant;
         }
+
+        // NOUVELLE POSITION - Vérifier le mat APRÈS avoir joué le coup
+        affiche_mat(choixia, partie, tableau);
 
         if (partie.temps_blanc <= 0) {
             printf("Temps ecoule pour les blancs, les noirs gagnent !\n");     

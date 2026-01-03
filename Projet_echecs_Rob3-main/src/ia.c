@@ -3,6 +3,16 @@
 // Variable globale pour suivre le nombre de coups légaux depuis le dernier appel à proposition_ia
 int g_last_compt = 0;
 
+// Fonction utilitaire pour convertir notation algébrique (ex: "A7") en indices [0-7]
+// pos[0] = colonne (A-H) -> j (0-7)
+// pos[1] = rangée (1-8) -> i (0-7)
+// NOTE: Cette fonction devrait être utilisée partout où tableau[i].pos[0] et tableau[i].pos[1]
+// sont utilisés directement (actuellement seulement appliquée aux pions pour corriger le bug en-passant)
+static inline void pos_to_indices(const char* pos, int* i, int* j) {
+    *j = pos[0] - 'A';  // A=0, B=1, ..., H=7
+    *i = pos[1] - '1';  // 1=0, 2=1, ..., 8=7
+}
+
 Coup proposition_ia(Partie partie, Tab *tableau) {
     Coup coup;
     Coup coup_courant;
@@ -120,12 +130,16 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
     for (int i=0; i < 16; i++){
         if (partie.joueur_actif == noir) {
             if (tableau[i].p == pion){
+                // Convertir les positions depuis notation algébrique vers indices
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
+                
                 // Test mouvements d'un pas des pions
                 for (int k = 0; k<3;k++){
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.jTo = tableau[i].pos[1]+-1+k;
-                    coup.iTo = (partie.joueur_actif == noir) ? tableau[i].pos[0]+1 : tableau[i].pos[0]-1;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.jTo = piece_j-1+k;  // -1, 0, +1 pour gauche, centre, droite
+                    coup.iTo = (partie.joueur_actif == noir) ? piece_i+1 : piece_i-1;
                     if (coup.iTo >= 0 && coup.iTo < 8 && coup.jTo >= 0 && coup.jTo < 8){
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)){
                         partie_copie = copie_tableau(partie);
@@ -139,10 +153,10 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                     }
                 }
                 // Test mouvements de deux pas des pions
-                coup.iFrom = tableau[i].pos[0];
-                coup.jFrom = tableau[i].pos[1];
-                coup.jTo = tableau[i].pos[1];
-                coup.iTo = (partie.joueur_actif == noir) ? tableau[i].pos[0]+2 : tableau[i].pos[0]-2;
+                coup.iFrom = piece_i;
+                coup.jFrom = piece_j;
+                coup.jTo = piece_j;
+                coup.iTo = (partie.joueur_actif == noir) ? piece_i+2 : piece_i-2;
                 if (coup.iTo >= 0 && coup.iTo < 8 && coup.jTo >= 0 && coup.jTo < 8){
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)){
                         partie_copie = copie_tableau(partie);
@@ -156,11 +170,13 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                 }
             }
             else if (tableau[i].p == reine) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 8; k++) { // Déplacement en ligne
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
                     coup.iTo = k;
-                    coup.jTo = tableau[i].pos[1];
+                    coup.jTo = piece_j;
                     if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
                         partie_copie.joueur_actif = (partie.joueur_actif == blanc) ? noir : blanc;
@@ -172,9 +188,9 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                     }
                 }
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i;
                     coup.jTo = k;
                     if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
@@ -187,10 +203,10 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                     }
                 }
                 for (int k = -7; k <= 7; k++) { // Déplacement en diagonale
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]+k;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j+k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -202,8 +218,8 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                             libererTableau(partie_copie);
                         }
                     }
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]-k;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j-k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -219,11 +235,13 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
             
             }
             else if (tableau[i].p == tour) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 8; k++) { // Déplacement en ligne
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
                     coup.iTo = k;
-                    coup.jTo = tableau[i].pos[1];
+                    coup.jTo = piece_j;
                     if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
                         partie_copie.joueur_actif = (partie.joueur_actif == blanc) ? noir : blanc;
@@ -235,9 +253,9 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                     }
                 }
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i;
                     coup.jTo = k;
                     if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
@@ -251,11 +269,13 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                 }
             }
             else if (tableau[i].p == fou) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = -7; k <= 7; k++) { // Déplacement en diagonale
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]+k;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j+k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -267,8 +287,8 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                             libererTableau(partie_copie);
                         }
                     }
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]-k;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j-k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -283,12 +303,14 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                 }
             }
             else if (tableau[i].p == cavalier) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 int deplacements[8][2] = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},{1,-2},{-1,2},{-1,-2}};
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0] + deplacements[k][0];
-                    coup.jTo = tableau[i].pos[1] + deplacements[k][1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i + deplacements[k][0];
+                    coup.jTo = piece_j + deplacements[k][1];
                         if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -303,11 +325,13 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                 }
             }
             else if (tableau[i].p == roi) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 3; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0] + k - 1;
-                    coup.jTo = tableau[i].pos[1] + k - 1;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i + k - 1;
+                    coup.jTo = piece_j + k - 1;
                         if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -321,8 +345,8 @@ int meilleurscoup1(Partie partie, int joueuria, Tab *tableau){
                     }
                 }
                 // Ajouter les possibilités de roque (déplacement du roi de 2 colonnes)
-                coup.iFrom = tableau[i].pos[0];
-                coup.jFrom = tableau[i].pos[1];
+                coup.iFrom = piece_i;
+                coup.jFrom = piece_j;
                 for (int dj = -2; dj <= 2; dj += 4) {
                     coup.iTo = coup.iFrom;
                     coup.jTo = coup.jFrom + dj;
@@ -356,12 +380,14 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
     for (int i=0; i < 16; i++){
         if (partie.joueur_actif == noir) {
             if (tableau[i].p == pion){
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 // Teste mouvements d'un pas des pions
                 for (int k = 0; k<3;k++){
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.jTo = tableau[i].pos[1]+-1+k;
-                    coup.iTo = (partie.joueur_actif == noir) ? tableau[i].pos[0]+1 : tableau[i].pos[0]-1;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.jTo = piece_j+-1+k;
+                    coup.iTo = (partie.joueur_actif == noir) ? piece_i+1 : piece_i-1;
                     if (coup.iTo >= 0 && coup.iTo < 8 && coup.jTo >= 0 && coup.jTo < 8){
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)){
                         partie_copie = copie_tableau(partie);
@@ -375,10 +401,10 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 // Teste mouvements de deux pas des pions
-                coup.iFrom = tableau[i].pos[0];
-                coup.jFrom = tableau[i].pos[1];
-                coup.jTo = tableau[i].pos[1];
-                coup.iTo = (partie.joueur_actif == noir) ? tableau[i].pos[0]+2 : tableau[i].pos[0]-2;
+                coup.iFrom = piece_i;
+                coup.jFrom = piece_j;
+                coup.jTo = piece_j;
+                coup.iTo = (partie.joueur_actif == noir) ? piece_i+2 : piece_i-2;
                 if (coup.iTo >= 0 && coup.iTo < 8 && coup.jTo >= 0 && coup.jTo < 8){
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)){
                         partie_copie = copie_tableau(partie);
@@ -392,11 +418,13 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == reine) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 8; k++) { // Déplacement en ligne
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
                     coup.iTo = k;
-                    coup.jTo = tableau[i].pos[1];
+                    coup.jTo = piece_j;
                     if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
                         partie_copie.joueur_actif = (partie.joueur_actif == blanc) ? noir : blanc;
@@ -408,9 +436,9 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i;
                     coup.jTo = k;
                     if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
@@ -423,10 +451,10 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 for (int k = -7; k <= 7; k++) { // Déplacement en diagonale
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]+k;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j+k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -438,8 +466,8 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                             libererTableau(partie_copie);
                         }
                     }
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]-k;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j-k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -455,11 +483,13 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
             
             }
             else if (tableau[i].p == tour) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 8; k++) { // Déplacement en ligne
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
                     coup.iTo = k;
-                    coup.jTo = tableau[i].pos[1];
+                    coup.jTo = piece_j;
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
                         partie_copie.joueur_actif = (partie.joueur_actif == blanc) ? noir : blanc;
@@ -471,9 +501,9 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i;
                     coup.jTo = k;
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
@@ -487,11 +517,13 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == fou) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = -7; k <= 7; k++) { // Déplacement en diagonale
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]+k;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j+k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -503,8 +535,8 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                             libererTableau(partie_copie);
                         }
                     }
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]-k;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j-k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -519,12 +551,14 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == cavalier) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 int deplacements[8][2] = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},{1,-2},{-1,2},{-1,-2}};
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0] + deplacements[k][0];
-                    coup.jTo = tableau[i].pos[1] + deplacements[k][1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i + deplacements[k][0];
+                    coup.jTo = piece_j + deplacements[k][1];
                         if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -539,11 +573,13 @@ int meilleurscoup2(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == roi) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 3; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0] + k - 1;
-                    coup.jTo = tableau[i].pos[1] + k - 1;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i + k - 1;
+                    coup.jTo = piece_j + k - 1;
                         if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, NULL) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -785,12 +821,14 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
     for (int i=0; i < 16; i++){
         if (partie.joueur_actif == noir){
             if (tableau[i].p == pion){
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 // Teste mouvements d'un pas des pions
                 for (int k = 0; k<3;k++){
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.jTo = tableau[i].pos[1]+(-1+k);
-                    coup.iTo = (partie.joueur_actif == noir) ? tableau[i].pos[0]+1 : tableau[i].pos[0]-1;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.jTo = piece_j+(-1+k);
+                    coup.iTo = (partie.joueur_actif == noir) ? piece_i+1 : piece_i-1;
                     if (coup.iTo >= 0 && coup.iTo < 8 && coup.jTo >= 0 && coup.jTo < 8){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)){
                             partie_copie = copie_tableau(partie);
@@ -802,10 +840,10 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 // Teste mouvements de deux pas des pions
-                coup.iFrom = tableau[i].pos[0];
-                coup.jFrom = tableau[i].pos[1];
-                coup.jTo = tableau[i].pos[1];
-                coup.iTo = (partie.joueur_actif == noir) ? tableau[i].pos[0]+2 : tableau[i].pos[0]-2;
+                coup.iFrom = piece_i;
+                coup.jFrom = piece_j;
+                coup.jTo = piece_j;
+                coup.iTo = (partie.joueur_actif == noir) ? piece_i+2 : piece_i-2;
                 if (coup.iTo >= 0 && coup.iTo < 8 && coup.jTo >= 0 && coup.jTo < 8){
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)){
                         partie_copie = copie_tableau(partie);
@@ -817,11 +855,13 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == reine) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 8; k++) { // Déplacement en ligne
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
                     coup.iTo = k;
-                    coup.jTo = tableau[i].pos[1];
+                    coup.jTo = piece_j;
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
                         appliquer_coup(&partie_copie, coup, tableau, 1);
@@ -831,9 +871,9 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i;
                     coup.jTo = k;
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
@@ -844,10 +884,10 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 for (int k = -7; k <= 7; k++) { // Déplacement en diagonale
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]+k;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j+k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -857,8 +897,8 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                             libererTableau(partie_copie);
                         }
                     }
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]-k;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j-k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -872,11 +912,13 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
             
             }
             else if (tableau[i].p == tour) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 8; k++) { // Déplacement en ligne
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
                     coup.iTo = k;
-                    coup.jTo = tableau[i].pos[1];
+                    coup.jTo = piece_j;
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
                         appliquer_coup(&partie_copie, coup, tableau, 1);
@@ -886,9 +928,9 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                     }
                 }
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i;
                     coup.jTo = k;
                     if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                         partie_copie = copie_tableau(partie);
@@ -900,11 +942,13 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == fou) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = -7; k <= 7; k++) { // Déplacement en diagonale
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]+k;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j+k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -914,8 +958,8 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                             libererTableau(partie_copie);
                         }
                     }
-                    coup.iTo = tableau[i].pos[0]+k;
-                    coup.jTo = tableau[i].pos[1]-k;
+                    coup.iTo = piece_i+k;
+                    coup.jTo = piece_j-k;
                     if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -928,12 +972,14 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == cavalier) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 int deplacements[8][2] = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},{1,-2},{-1,2},{-1,-2}};
                 for (int k = 0; k < 8; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0] + deplacements[k][0];
-                    coup.jTo = tableau[i].pos[1] + deplacements[k][1];
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i + deplacements[k][0];
+                    coup.jTo = piece_j + deplacements[k][1];
                         if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
@@ -946,11 +992,13 @@ int meilleurscoup4(Partie partie, int joueuria, Tab* tableau){
                 }
             }
             else if (tableau[i].p == roi) {
+                int piece_i, piece_j;
+                pos_to_indices(tableau[i].pos, &piece_i, &piece_j);
                 for (int k = 0; k < 3; k++) {
-                    coup.iFrom = tableau[i].pos[0];
-                    coup.jFrom = tableau[i].pos[1];
-                    coup.iTo = tableau[i].pos[0] + k - 1;
-                    coup.jTo = tableau[i].pos[1] + k - 1;
+                    coup.iFrom = piece_i;
+                    coup.jFrom = piece_j;
+                    coup.iTo = piece_i + k - 1;
+                    coup.jTo = piece_j + k - 1;
                         if (0 <=coup.iTo &&  coup.iTo <=7 && 0 <= coup.jTo && coup.jTo <= 7){
                         if (mouvement_echecia(coup, partie, tableau) && est_mouvement_valide(coup, tableau[i].p, partie, partie.joueur_actif)) {
                             partie_copie = copie_tableau(partie);
