@@ -13,16 +13,21 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Permet de passer -DSTOCKFISH_EXECUTABLE=/chemin/stockfish.exe
 if(NOT DEFINED STOCKFISH_EXECUTABLE)
     find_program(STOCKFISH_EXECUTABLE
-        NAMES stockfish.exe stockfish
+        NAMES stockfish-windows-x86-64-avx2.exe stockfish.exe stockfish
         HINTS "${CMAKE_CURRENT_SOURCE_DIR}/stockfish" "${CMAKE_CURRENT_SOURCE_DIR}/stockfish/bin"
         PATHS $ENV{PATH}
     )
 endif()
 
+# Pour la distribution, on utilise toujours un chemin relatif
+# L'utilisateur devra placer stockfish dans le bon dossier relatif
+set(STOCKFISH_RELATIVE_PATH "stockfish\\\\stockfish-windows-x86-64-avx2.exe")
+
 if(NOT STOCKFISH_EXECUTABLE)
-    message(STATUS "Stockfish executable not found automatically. You can pass -DSTOCKFISH_EXECUTABLE=/path/to/stockfish.exe to CMake.")
+    message(STATUS "Stockfish executable not found automatically. Using relative path: ${STOCKFISH_RELATIVE_PATH}")
 else()
     message(STATUS "Found Stockfish: ${STOCKFISH_EXECUTABLE}")
+    message(STATUS "Distribution will use relative path: ${STOCKFISH_RELATIVE_PATH}")
 endif()
 
 # --- Main chess game executable
@@ -62,11 +67,8 @@ if(MSVC)
     set_property(TARGET check_moves PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-if(STOCKFISH_EXECUTABLE)
-    target_compile_definitions(check_moves PRIVATE STOCKFISH_PATH="${STOCKFISH_EXECUTABLE}")
-else()
-    target_compile_definitions(check_moves PRIVATE STOCKFISH_PATH="")
-endif()
+# Toujours utiliser un chemin relatif pour la portabilité
+target_compile_definitions(check_moves PRIVATE STOCKFISH_PATH="${STOCKFISH_RELATIVE_PATH}")
 
 message(STATUS "Build targets:")
 message(STATUS "  - chess_game (main game executable)")

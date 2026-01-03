@@ -81,21 +81,57 @@ static int do_perft(HANDLE child_in_write, HANDLE child_out_read, const std::str
 }
 
 int main(int argc, char **argv) {
-	// Chemin du moteur depuis la macro CMake STOCKFISH_PATH, sinon chemin relatif par défaut.
-#ifdef STOCKFISH_PATH
-	const char *engine = STOCKFISH_PATH;
-#else
-	const char *engine = "stockfish\\stockfish-windows-x86-64-avx2.exe";
-#endif
-	/*if (!engine || engine[0] == '\0') {
-		engine = "E:\\Polytech Sorbonne\\3A - 2\\Projet echecs\\Projet\\stockfish\\stockfish-windows-x86-64-avx2.exe";
-	}*/
+	// Parse arguments first to set g_quiet before any logging
 	bool daemon_mode = false;
 	std::string fen;
 	for (int i = 1; i < argc; ++i) {
-	std::string a = argv[i];
-	if (a == "--daemon") daemon_mode = true;
-	else if (a == "--quiet") g_quiet = true;
+		std::string a = argv[i];
+		if (a == "--daemon") daemon_mode = true;
+		else if (a == "--quiet") g_quiet = true;
+		else if (fen.empty()) fen = a;
+	}
+	
+	// Chemin du moteur depuis la macro CMake STOCKFISH_PATH, sinon chemin relatif par défaut.
+	std::string engine_path;
+#ifdef STOCKFISH_PATH
+	engine_path = STOCKFISH_PATH;
+#else
+	engine_path = "stockfish\\stockfish-windows-x86-64-avx2.exe";
+#endif
+	
+	// Essayer plusieurs chemins relatifs pour trouver Stockfish
+	std::vector<std::string> paths_to_try = {
+		engine_path,
+		"..\\..\\stockfish\\stockfish-windows-x86-64-avx2.exe",  // depuis build/Release
+		"stockfish\\stockfish-windows-x86-64-avx2.exe",           // depuis la racine
+		".\\stockfish\\stockfish-windows-x86-64-avx2.exe"         // relatif au dossier courant
+	};
+	
+	const char *engine = nullptr;
+	for (const auto& path : paths_to_try) {
+		if (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+			engine = path.c_str();
+			if (!g_quiet) log_err("Found Stockfish at: " + path);
+			break;
+		}
+	}
+	
+	if (!engine) {
+		std::cerr << "ERROR: Stockfish executable not found!\n";
+		std::cerr << "Tried the following paths:\n";
+		for (const auto& path : paths_to_try) {
+			std::cerr << "  - " << path << "\n";
+		}
+		std::cerr << "\nPlease ensure stockfish-windows-x86-64-avx2.exe is in the 'stockfish' folder.\n";
+		std::cerr << "Press any key to close this window...\n";
+		system("pause");
+		return 1;
+	}
+	
+	for (int i = 1; i < argc; ++i) {
+		std::string a = argv[i];
+		if (a == "--daemon") daemon_mode = true;
+		else if (a == "--quiet") g_quiet = true;
 		else if (fen.empty()) fen = a;
 	}
 
