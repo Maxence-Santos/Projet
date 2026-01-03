@@ -90,11 +90,6 @@ cmake --build build --config Release
   - `..\..stockfish\stockfish-windows-x86-64-avx2.exe` (depuis build/Release)
   - Le dossier actuel
 
-**L'exécutable ne se lance pas :**
-- Vérifiez que vous êtes sur Windows (pas de support Linux/Mac pour l'instant)
-- Assurez-vous que votre antivirus ne bloque pas l'exécutable
-- Essayez d'exécuter en tant qu'administrateur si nécessaire
-
 ## Licence
 
 Voir les fichiers de licence respectifs pour chaque composant.
